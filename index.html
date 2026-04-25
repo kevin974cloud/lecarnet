@@ -18,6 +18,9 @@
 
   <style>
     html, body, #root { margin: 0; padding: 0; height: 100%; background: #080b12; }
+    /* Ensure the app fills the full screen including safe areas */
+    html { height: -webkit-fill-available; }
+    body { min-height: -webkit-fill-available; }
   </style>
 </head>
 <body>
@@ -57,9 +60,11 @@ const css = `
     background: var(--bg); box-shadow: 0 0 80px rgba(0,0,0,.6);
   }
 
-  /* HEADER */
+  /* HEADER — respecte la safe area iOS (encoche / Dynamic Island) */
   .header {
-    padding: 20px 20px 12px; background: var(--surface);
+    padding-top: max(20px, env(safe-area-inset-top, 20px));
+    padding-left: 20px; padding-right: 20px; padding-bottom: 12px;
+    background: var(--surface);
     border-bottom: 1px solid var(--border);
     display: flex; align-items: flex-end; justify-content: space-between;
     flex-shrink: 0;
@@ -67,6 +72,54 @@ const css = `
   .header-logo { font-family: var(--font-display); font-size: 2rem; letter-spacing: 2px; line-height: 1; }
   .header-logo span { color: var(--accent); }
   .header-date { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .header-actions { display: flex; align-items: center; gap: 8px; }
+
+  /* Bouton données */
+  .header-data-btn {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--muted); transition: color .15s, border-color .15s; flex-shrink: 0;
+  }
+  .header-data-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .header-data-btn svg { width: 16px; height: 16px; stroke-width: 2; }
+
+  /* Modal export/import */
+  .data-modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.8);
+    display: flex; align-items: flex-end; justify-content: center;
+    z-index: 200; animation: fadeIn .2s ease;
+  }
+  .data-modal {
+    background: var(--surface); border-radius: 20px 20px 0 0;
+    padding: 24px 20px max(36px, env(safe-area-inset-bottom, 36px));
+    width: 100%; max-width: 430px;
+    border-top: 1px solid var(--border);
+    animation: slideUp .25s ease;
+  }
+  .data-modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; }
+  .data-modal-title { font-family: var(--font-display); font-size: 1.4rem; letter-spacing: 1.5px; margin-bottom: 6px; }
+  .data-modal-sub { font-size: .78rem; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+
+  .data-action-btn {
+    width: 100%; padding: 14px 16px; border-radius: var(--radius); border: 1px solid var(--border);
+    background: var(--card); color: var(--text); font-family: var(--font-body);
+    font-size: .88rem; font-weight: 600; cursor: pointer; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 12px; transition: border-color .15s, background .15s;
+    text-align: left;
+  }
+  .data-action-btn:hover { border-color: var(--accent); background: rgba(77,159,255,.06); }
+  .data-action-btn.danger:hover { border-color: var(--danger); background: rgba(240,83,83,.06); color: var(--danger); }
+  .data-action-btn svg { width: 18px; height: 18px; stroke-width: 2; flex-shrink: 0; color: var(--accent); }
+  .data-action-btn.danger svg { color: var(--danger); }
+  .data-action-text { flex: 1; }
+  .data-action-title { font-weight: 600; }
+  .data-action-desc { font-size: .72rem; color: var(--muted); margin-top: 2px; font-weight: 400; }
+
+  .data-close-btn {
+    width: 100%; padding: 12px; background: transparent; border: none;
+    color: var(--muted); font-family: var(--font-body); font-size: .85rem;
+    cursor: pointer; margin-top: 4px;
+  }
 
   /* MAIN */
   .main { flex: 1; overflow-y: auto; padding: 20px; }
@@ -342,7 +395,9 @@ const css = `
   /* ── SESSION ACTIVE ── */
   .session-header {
     background: var(--surface); border-bottom: 1px solid var(--border);
-    padding: 14px 20px; display: flex; align-items: center;
+    padding-top: max(14px, env(safe-area-inset-top, 14px));
+    padding-left: 20px; padding-right: 20px; padding-bottom: 14px;
+    display: flex; align-items: center;
     gap: 12px; flex-shrink: 0;
   }
   .session-back {
@@ -812,6 +867,121 @@ const IconBack       = () => <Ico d={["M19 12H5","M12 5l-7 7 7 7"]} />;
 const IconCheck      = () => <Ico d={["M20 6L9 17l-5-5"]} />;
 const IconTrash      = () => <Ico d={["M3 6h18","M8 6V4h8v2","M19 6l-1 14H6L5 6"]} />;
 const IconSearch     = () => <Ico d={["M21 21l-4.35-4.35","M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0"]} />;
+const IconDownload   = () => <Ico d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4","M7 10l5 5 5-5","M12 15V3"]} />;
+const IconUpload     = () => <Ico d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4","M17 8l-5-5-5 5","M12 3v12"]} />;
+const IconDatabase   = () => <Ico d={["M12 2C6.48 2 2 4.24 2 7s4.48 5 10 5 10-2.24 10-5-4.48-5-10-5z","M2 7v5c0 2.76 4.48 5 10 5s10-2.24 10-5V7","M2 12v5c0 2.76 4.48 5 10 5s10-2.24 10-5v-5"]} />;
+const IconAlertTriangle = () => <Ico d={["M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z","M12 9v4","M12 17h.01"]} />;
+
+/* ══════════════════════════════════════════════════════════════════
+   MODAL EXPORT / IMPORT DONNÉES
+══════════════════════════════════════════════════════════════════ */
+function DataModal({ onClose }) {
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+
+  const ALL_KEYS = [LS_CUSTOM, LS_HISTORY, LS_MODIFIED];
+
+  const handleExport = () => {
+    const data = {};
+    ALL_KEYS.forEach(k => {
+      const v = localStorage.getItem(k);
+      if (v) data[k] = JSON.parse(v);
+    });
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+    a.href = url; a.download = `lecarnet-backup-${date}.json`;
+    a.click(); URL.revokeObjectURL(url);
+    setFeedback("✅ Sauvegarde téléchargée !");
+    setTimeout(() => setFeedback(null), 3000);
+  };
+
+  const handleImport = () => {
+    const input = document.createElement("input");
+    input.type = "file"; input.accept = ".json";
+    input.onchange = (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          ALL_KEYS.forEach(k => {
+            if (data[k] !== undefined) localStorage.setItem(k, JSON.stringify(data[k]));
+          });
+          setFeedback("✅ Données restaurées ! Relance l'app.");
+          setTimeout(() => { setFeedback(null); onClose(); window.location.reload(); }, 2000);
+        } catch {
+          setFeedback("❌ Fichier invalide.");
+          setTimeout(() => setFeedback(null), 3000);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  const handleReset = () => {
+    ALL_KEYS.forEach(k => localStorage.removeItem(k));
+    setFeedback("🗑️ Données effacées.");
+    setTimeout(() => { onClose(); window.location.reload(); }, 1500);
+  };
+
+  return (
+    <div className="data-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="data-modal">
+        <div className="data-modal-handle" />
+        <div className="data-modal-title">MES DONNÉES</div>
+        <div className="data-modal-sub">
+          Exporte tes données pour les sauvegarder, ou importe une sauvegarde existante.
+        </div>
+
+        {feedback && (
+          <div style={{ background:"rgba(77,159,255,.1)", border:"1px solid rgba(77,159,255,.3)",
+            borderRadius:10, padding:"10px 14px", marginBottom:14,
+            fontSize:".85rem", color:"var(--text)" }}>
+            {feedback}
+          </div>
+        )}
+
+        <button className="data-action-btn" onClick={handleExport}>
+          <IconDownload />
+          <div className="data-action-text">
+            <div className="data-action-title">Exporter mes données</div>
+            <div className="data-action-desc">Télécharge un fichier .json de sauvegarde</div>
+          </div>
+        </button>
+
+        <button className="data-action-btn" onClick={handleImport}>
+          <IconUpload />
+          <div className="data-action-text">
+            <div className="data-action-title">Importer une sauvegarde</div>
+            <div className="data-action-desc">Restaure depuis un fichier .json existant</div>
+          </div>
+        </button>
+
+        {!confirmReset ? (
+          <button className="data-action-btn danger" onClick={() => setConfirmReset(true)}>
+            <IconAlertTriangle />
+            <div className="data-action-text">
+              <div className="data-action-title">Effacer toutes les données</div>
+              <div className="data-action-desc">Irréversible — exporte d'abord !</div>
+            </div>
+          </button>
+        ) : (
+          <div style={{ display:"flex", gap:10, marginBottom:10 }}>
+            <button className="btn btn-ghost" style={{ flex:1 }} onClick={() => setConfirmReset(false)}>Annuler</button>
+            <button className="btn" style={{ flex:1, background:"var(--danger)", color:"#fff" }} onClick={handleReset}>
+              Confirmer la suppression
+            </button>
+          </div>
+        )}
+
+        <button className="data-close-btn" onClick={onClose}>Fermer</button>
+      </div>
+    </div>
+  );
+}
 
 /* ══════════════════════════════════════════════════════════════════
    TABS
@@ -2101,6 +2271,7 @@ function WorkoutTracker() {
   const [tab, setTab]           = useState("seance");
   const [session, setSession]   = useState(null);
   const [lastRec, setLastRec]   = useState(null);
+  const [dataModal, setDataModal] = useState(false);
 
   const today = new Date().toLocaleDateString("fr-FR", {
     weekday: "long", day: "numeric", month: "long",
@@ -2129,8 +2300,15 @@ function WorkoutTracker() {
 
         <header className="header">
           <div className="header-logo">LE <span>CARNET</span></div>
-          <div className="header-date">{today}</div>
+          <div className="header-actions">
+            <div className="header-date">{today}</div>
+            <button className="header-data-btn" onClick={() => setDataModal(true)} title="Mes données">
+              <IconDatabase />
+            </button>
+          </div>
         </header>
+
+        {dataModal && <DataModal onClose={() => setDataModal(false)} />}
 
         <main className="main">
           {/* Bandeau de confirmation post-séance */}
