@@ -1067,6 +1067,7 @@ function ModalAddExercise({ onClose, onAdd }) {
 function SessionView({ workout, onFinish, onBack }) {
   const [exercises, setExercises] = useState(() => buildExos(workout));
   const [addExoModal, setAddExoModal] = useState(false);
+  const [confirmFinish, setConfirmFinish] = useState(false);
   const { elapsed, label: timer } = useTimer(true);
 
   const totalSets = exercises.reduce((a, ex) => a + ex.sets.length, 0);
@@ -1119,8 +1120,39 @@ function SessionView({ workout, onFinish, onBack }) {
           <div className="session-name">{workout.emoji} {workout.name.toUpperCase()}</div>
           <div className="session-timer">⏱ {timer} · {doneSets}/{totalSets} séries</div>
         </div>
-        <button className="session-finish" onClick={handleFinish}>Terminer</button>
+        <button className="session-finish" onClick={() => setConfirmFinish(true)}>Terminer</button>
       </div>
+
+      {/* Modal de confirmation */}
+      {confirmFinish && (
+        <div className="data-modal-overlay" onClick={() => setConfirmFinish(false)}>
+          <div className="data-modal" onClick={e => e.stopPropagation()}>
+            <div className="data-modal-handle" />
+            <div className="data-modal-title">TERMINER LA SÉANCE ?</div>
+            <div className="data-modal-sub">
+              {doneSets} série{doneSets > 1 ? "s" : ""} validée{doneSets > 1 ? "s" : ""} sur {totalSets} · {timer}
+              {doneSets < totalSets && (
+                <span style={{ display:"block", marginTop:6, color:"var(--danger)" }}>
+                  ⚠️ {totalSets - doneSets} série{totalSets - doneSets > 1 ? "s" : ""} non validée{totalSets - doneSets > 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+            <button className="data-action-btn" onClick={() => { setConfirmFinish(false); handleFinish(); }}
+              style={{ marginBottom:10, borderColor:"var(--accent)", background:"rgba(77,159,255,.08)" }}>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18" style={{ color:"var(--accent)", flexShrink:0 }}>
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+              <div className="data-action-text">
+                <div className="data-action-title">Confirmer et sauvegarder</div>
+                <div className="data-action-desc">La séance sera enregistrée dans l'historique</div>
+              </div>
+            </button>
+            <button className="data-close-btn" onClick={() => setConfirmFinish(false)}>
+              Reprendre la séance
+            </button>
+          </div>
+        </div>
+      )}
 
       <main className="main">
         {allDone && (
