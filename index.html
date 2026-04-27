@@ -994,16 +994,39 @@ const TABS = [
 ];
 
 /* ══════════════════════════════════════════════════════════════════
-   TIMER HOOK
+   TIMER HOOK — basé sur l'heure de départ réelle (résiste à la mise en veille iOS)
 ══════════════════════════════════════════════════════════════════ */
 function useTimer(running) {
+  const startRef = useRef(null);
   const [elapsed, setElapsed] = useState(0);
-  const ref = useRef(null);
+  const intervalRef = useRef(null);
+
   useEffect(() => {
-    if (running) ref.current = setInterval(() => setElapsed(e => e + 1), 1000);
-    else { clearInterval(ref.current); setElapsed(0); }
-    return () => clearInterval(ref.current);
+    if (!running) {
+      clearInterval(intervalRef.current);
+      startRef.current = null;
+      setElapsed(0);
+      return;
+    }
+    // Mémorise l'heure de départ absolue
+    if (!startRef.current) startRef.current = Date.now();
+
+    const tick = () => {
+      setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+    };
+    tick(); // calcul immédiat
+    intervalRef.current = setInterval(tick, 1000);
+
+    // Recalcul au retour au premier plan (visibilitychange)
+    const onVisible = () => { if (document.visibilityState === "visible") tick(); };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      clearInterval(intervalRef.current);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [running]);
+
   const mm = String(Math.floor(elapsed / 60)).padStart(2, "0");
   const ss = String(elapsed % 60).padStart(2, "0");
   return { elapsed, label: `${mm}:${ss}` };
